@@ -27,103 +27,163 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatelessWidget {
+class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
 
   @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  final _nameController = TextEditingController();
+  final _ageController = TextEditingController();
+  final _idController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _ageController.dispose();
+    _idController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final pad = EdgeInsets.symmetric(horizontal: 16, vertical: 10);
+    final border = OutlineInputBorder(borderRadius: BorderRadius.circular(12));
+
     return Scaffold(
       appBar: AppBar(title: const Text('sqflite')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              ElevatedButton(
-                onPressed: _insert,
-                child: const Text('Insert'),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // ---------- Inputs ----------
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Name',
+                contentPadding: pad,
+                border: border,
               ),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: _query,
-                child: const Text('Query All'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _ageController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Age',
+                contentPadding: pad,
+                border: border,
               ),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: _update,
-                child: const Text('Update (id=1 → Mary 32)'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _idController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'ID (for Update / Delete / Query by ID)',
+                contentPadding: pad,
+                border: border,
               ),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: _delete,
-                child: const Text('Delete Last Row (by count)'),
-              ),
-              const SizedBox(height: 10),
-              // ----- Part 2 -----
-              ElevatedButton(
-                onPressed: () => _queryById(context),
-                child: const Text('Query by ID'),
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: _deleteAll,
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-                child: const Text('Delete All'),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Open the Run tab in Android Studio to see debugPrint output.',
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 20),
+
+            // ---------- Buttons ----------
+            ElevatedButton(
+              onPressed: _insert,
+              child: const Text('Insert'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _queryAll,
+              child: const Text('Query All'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _update,
+              child: const Text('Update (use ID field)'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _delete,
+              child: const Text('Delete (use ID field)'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _queryById,
+              child: const Text('Query by ID'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _deleteAll,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              child: const Text('Delete All'),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Open the Run tab in Android Studio to see debugPrint output.',
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ----------------- Button handlers -----------------
+  // ---------- Handlers ----------
 
-  static Future<void> _insert() async {
-    final row = {
-      DatabaseHelper.columnName: 'Bob',
-      DatabaseHelper.columnAge: 23,
-    };
-    final id = await dbHelper.insert(row);
+  Future<void> _insert() async {
+    final name = _nameController.text.trim();
+    final age = int.tryParse(_ageController.text.trim());
+    if (name.isEmpty || age == null) {
+      debugPrint('Please enter a valid name and age.');
+      return;
+    }
+    final id = await dbHelper.insert({
+      DatabaseHelper.columnName: name,
+      DatabaseHelper.columnAge: age,
+    });
     debugPrint('Inserted row id: $id');
   }
 
-  static Future<void> _query() async {
+  Future<void> _queryAll() async {
     final all = await dbHelper.queryAllRows();
     debugPrint('All rows (${all.length}): $all');
   }
 
-  static Future<void> _update() async {
-    final row = {
-      DatabaseHelper.columnId: 1,
-      DatabaseHelper.columnName: 'Mary',
-      DatabaseHelper.columnAge: 32,
-    };
-    final count = await dbHelper.update(row);
-    debugPrint('Updated $count row(s) for id=1');
-  }
-
-  static Future<void> _delete() async {
-    final lastId = await dbHelper.queryRowCount();
-    if (lastId == 0) {
-      debugPrint('Nothing to delete.');
+  Future<void> _update() async {
+    final id = int.tryParse(_idController.text.trim());
+    final name = _nameController.text.trim();
+    final age = int.tryParse(_ageController.text.trim());
+    if (id == null || name.isEmpty || age == null) {
+      debugPrint('Please enter ID, name, and age to update.');
       return;
     }
-    final deleted = await dbHelper.delete(lastId);
-    debugPrint('Deleted $deleted row(s): row $lastId');
+    final count = await dbHelper.update({
+      DatabaseHelper.columnId: id,
+      DatabaseHelper.columnName: name,
+      DatabaseHelper.columnAge: age,
+    });
+    debugPrint('Updated $count row(s) for id=$id');
   }
 
-  // ----------------- Part 2 -----------------
+  Future<void> _delete() async {
+    final id = int.tryParse(_idController.text.trim());
+    if (id == null) {
+      debugPrint('Please enter a valid ID to delete.');
+      return;
+    }
+    final deleted = await dbHelper.delete(id);
+    debugPrint('Deleted $deleted row(s) for id=$id');
+  }
 
-  static Future<void> _queryById(BuildContext context) async {
-    final id = await _promptForId(context);
-    if (id == null) return;
+  Future<void> _queryById() async {
+    final id = int.tryParse(_idController.text.trim());
+    if (id == null) {
+      debugPrint('Please enter a valid ID.');
+      return;
+    }
     final row = await dbHelper.queryById(id);
     if (row == null) {
       debugPrint('No row found for id=$id');
@@ -132,38 +192,8 @@ class MyHomePage extends StatelessWidget {
     }
   }
 
-  static Future<void> _deleteAll() async {
+  Future<void> _deleteAll() async {
     final n = await dbHelper.deleteAll();
     debugPrint('Deleted ALL rows ($n).');
-  }
-
-  // Small helper dialog to get an integer ID
-  static Future<int?> _promptForId(BuildContext context) async {
-    final controller = TextEditingController();
-    final value = await showDialog<int?>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Enter ID'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            hintText: 'e.g., 1',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () {
-              final v = int.tryParse(controller.text.trim());
-              Navigator.pop(ctx, v);
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-    return value;
   }
 }
