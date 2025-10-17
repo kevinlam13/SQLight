@@ -13,11 +13,9 @@ class DatabaseHelper {
 
   late Database _db;
 
-  // Opens the database (creates it if it doesn't exist)
   Future<void> init() async {
-    final documentsDirectory = await getApplicationDocumentsDirectory();
-    final path = join(documentsDirectory.path, _databaseName);
-
+    final dir = await getApplicationDocumentsDirectory();
+    final path = join(dir.path, _databaseName);
     _db = await openDatabase(
       path,
       version: _databaseVersion,
@@ -25,7 +23,6 @@ class DatabaseHelper {
     );
   }
 
-  // SQL code to create the database table
   Future _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE $table (
@@ -36,39 +33,40 @@ class DatabaseHelper {
     ''');
   }
 
-  // Inserts a row in the database and returns the new row ID
-  Future<int> insert(Map<String, dynamic> row) async {
-    return await _db.insert(table, row);
-  }
+  // ---------------- Basic CRUD ----------------
+  Future<int> insert(Map<String, dynamic> row) async =>
+      _db.insert(table, row);
 
-  // Queries and returns all rows as a list of maps
-  Future<List<Map<String, dynamic>>> queryAllRows() async {
-    return await _db.query(table);
-  }
+  Future<List<Map<String, dynamic>>> queryAllRows() async =>
+      _db.query(table, orderBy: '$columnId ASC');
 
-  // Returns the total number of rows using a raw query
   Future<int> queryRowCount() async {
-    final results = await _db.rawQuery('SELECT COUNT(*) FROM $table');
-    return Sqflite.firstIntValue(results) ?? 0;
+    final res = await _db.rawQuery('SELECT COUNT(*) FROM $table');
+    return Sqflite.firstIntValue(res) ?? 0;
   }
 
-  // Updates a specific row based on the ID
   Future<int> update(Map<String, dynamic> row) async {
-    int id = row[columnId];
-    return await _db.update(
-      table,
-      row,
-      where: '$columnId = ?',
-      whereArgs: [id],
-    );
+    final id = row[columnId] as int;
+    return _db.update(table, row,
+        where: '$columnId = ?', whereArgs: [id]);
   }
 
-  // Deletes a row by ID
-  Future<int> delete(int id) async {
-    return await _db.delete(
+  Future<int> delete(int id) async =>
+      _db.delete(table, where: '$columnId = ?', whereArgs: [id]);
+
+  // ---------------- Part 2 ----------------
+  /// Query one record by ID
+  Future<Map<String, dynamic>?> queryById(int id) async {
+    final rows = await _db.query(
       table,
       where: '$columnId = ?',
       whereArgs: [id],
+      limit: 1,
     );
+    if (rows.isEmpty) return null;
+    return rows.first;
   }
+
+  /// Delete all rows
+  Future<int> deleteAll() async => _db.delete(table);
 }
