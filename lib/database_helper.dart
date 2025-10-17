@@ -13,6 +13,7 @@ class DatabaseHelper {
 
   late Database _db;
 
+  /// Open (or create) the database
   Future<void> init() async {
     final dir = await getApplicationDocumentsDirectory();
     final path = join(dir.path, _databaseName);
@@ -23,6 +24,7 @@ class DatabaseHelper {
     );
   }
 
+  /// Create schema (runs only on first open)
   Future _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE $table (
@@ -33,29 +35,47 @@ class DatabaseHelper {
     ''');
   }
 
-  // ---------------- Basic CRUD ----------------
-  Future<int> insert(Map<String, dynamic> row) async =>
-      _db.insert(table, row);
+  // ----------------- CRUD -----------------
 
-  Future<List<Map<String, dynamic>>> queryAllRows() async =>
-      _db.query(table, orderBy: '$columnId ASC');
+  /// Insert a row, returns new row id
+  Future<int> insert(Map<String, dynamic> row) async {
+    return _db.insert(table, row);
+  }
 
+  /// Query every row
+  Future<List<Map<String, dynamic>>> queryAllRows() async {
+    return _db.query(table, orderBy: '$columnId ASC');
+  }
+
+  /// Count rows
   Future<int> queryRowCount() async {
     final res = await _db.rawQuery('SELECT COUNT(*) FROM $table');
     return Sqflite.firstIntValue(res) ?? 0;
   }
 
+  /// Update by id
   Future<int> update(Map<String, dynamic> row) async {
     final id = row[columnId] as int;
-    return _db.update(table, row,
-        where: '$columnId = ?', whereArgs: [id]);
+    return _db.update(
+      table,
+      row,
+      where: '$columnId = ?',
+      whereArgs: [id],
+    );
   }
 
-  Future<int> delete(int id) async =>
-      _db.delete(table, where: '$columnId = ?', whereArgs: [id]);
+  /// Delete by id
+  Future<int> delete(int id) async {
+    return _db.delete(
+      table,
+      where: '$columnId = ?',
+      whereArgs: [id],
+    );
+  }
 
-  // ---------------- Part 2 ----------------
-  /// Query one record by ID
+  // ----------------- Part 2 -----------------
+
+  /// Query a single row by id (returns null if not found)
   Future<Map<String, dynamic>?> queryById(int id) async {
     final rows = await _db.query(
       table,
@@ -67,6 +87,8 @@ class DatabaseHelper {
     return rows.first;
   }
 
-  /// Delete all rows
-  Future<int> deleteAll() async => _db.delete(table);
+  /// Delete ALL rows, returns number deleted
+  Future<int> deleteAll() async {
+    return _db.delete(table);
+  }
 }
